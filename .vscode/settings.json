@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "bitset": "c",
+        "variant": "c",
+        "xhash": "c",
+        "xtree": "c",
+        "xutility": "c",
+        "*.ipp": "c",
+        "algorithm": "c",
+        "format": "c"
+    }
+}
