@@ -1,0 +1,22 @@
+{
+    "env": {
+        "WINDRIVER_SDK" : "/home/leo/workspace/vxworks-work/vxworks-sdk-rpi4"
+    },
+    "configurations": [
+        {
+            "name": "VxWorks",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${WINDRIVER_SDK}/vxsdk/sysroot/usr/h/public/",
+                "${WINDRIVER_SDK}/vxsdk/sysroot/share/h/public/",
+                "${WINDRIVER_SDK}/vxsdk/sysroot/usr/h/**",
+                "${WINDRIVER_SDK}/vxsdk/sysroot/share/h/**",
+                "${WINDRIVER_SDK}/toolkit/include/usr/h/public/",
+                "${WINDRIVER_SDK}/toolkit/include/share/h/public/",
+                "${WINDRIVER_SDK}/toolkit/include/usr/h/**",
+                "${WINDRIVER_SDK}/toolkit/include/share/h/**"
+            ]
+        }
+    ],
+    "version": 4
+}
