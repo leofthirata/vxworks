@@ -7,6 +7,13 @@
         "xutility": "c",
         "*.ipp": "c",
         "algorithm": "c",
-        "format": "c"
+        "format": "c",
+        "mutex": "c",
+        "condition_variable": "c",
+        "future": "c",
+        "timerlib.h": "c",
+        "tasklib.h": "c",
+        "syslib.h": "c",
+        "vxbgpiolib.h": "c"
     }
 }
