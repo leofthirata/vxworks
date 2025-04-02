@@ -8,8 +8,6 @@
 #include <sysLib.h>
 #include <tickLib.h>
 
-// https://comp.os.vxworks.narkive.com/Pdbc5O8e/system-time-in-milliseconds
-
 #define GPIO_MODE_OUTPUT	1
 #define GPIO_MODE_INPUT		0
 
@@ -17,11 +15,13 @@
 #define USER_BUTTON_PIN		20
 
 #define millis()		((tickGet() / sysClkRateGet()) * 1000)
+#define DELAY_MS(ms)	(sysClkRateGet() / (1000 / ms))
 
-timer_t timer_id;
-SEM_ID my_sem;
 bool button_pressed = false;
 uint32_t timeout = 1000;
+
+// void button_handler(uint32_t val);
+void button_handler(void *args);
 
 int gpio_config(uint32_t gpio, uint8_t mode)
 {
@@ -41,60 +41,44 @@ int gpio_config(uint32_t gpio, uint8_t mode)
 	return 0;
 }
 
+int gpio_set_isr(uint32_t gpio)
+{
+	// vxbIntCommon.h
+	vxbGpioIntConfig(gpio, INTR_TRIGGER_EDGE, INTR_POLARITY_LOW);
+
+	vxbGpioIntConnect(gpio, button_handler, NULL);
+	vxbGpioIntEnable(gpio, button_handler, NULL);
+
+	return 0;
+}
+
 void gpio_toggle(uint32_t gpio)
 {
 	int val = vxbGpioGetValue(gpio);
 	vxbGpioSetValue(gpio, val^1);
 }
 
-void button_handler(uint32_t val)
+void button_handler(void *args)
 {
-	static uint32_t timestamp = 0;
-	if ((millis() - timestamp) > timeout) {
-		button_pressed = true;
-		timestamp = millis();
-	}
-}
-
-void button_task()
-{
-	printf("Button task started!\n");
-
-	gpio_config(USER_LED_PIN, GPIO_MODE_OUTPUT);
-	gpio_config(USER_BUTTON_PIN, GPIO_MODE_INPUT);
-	uint32_t val = 0;
-	uint32_t prev_val = 0;
-	uint8_t count = 0;
-
-	while (count < 10) {
-		val = vxbGpioGetValue(USER_BUTTON_PIN);
-		if (prev_val != val)
-			// button_pressed = true;
-			button_handler(val);
-		
-		prev_val = val;
-
-		if (button_pressed) {
-			count += 1;
-			gpio_toggle(USER_LED_PIN);
-			button_pressed = false;
-		}
-	}
-
-	taskDelete(NULL);
+	button_pressed = true;
 }
 
 int main()
 {
-	printf("DKM app 1\n");
+	printf("DKM app 3\n");
 
-	TASK_ID task_id = taskSpawn("button_task", 10, 0, 200, (FUNCPTR)button_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	if (task_id == NULL) {
-		perror("Failed to create task!\n");
-		return -1;
+	gpio_config(USER_BUTTON_PIN, GPIO_MODE_INPUT);
+	gpio_set_isr(USER_BUTTON_PIN);
+
+	int count = 0;
+	while (count < 20) {
+		if (button_pressed) {
+			printf("loop count %d\n", count);
+			button_pressed = false;
+		}
+		count += 1;
+		taskDelay(DELAY_MS(500));
 	}
-
-	while (taskIdVerify(task_id) == OK) {}
 
 	printf("Application done\n");
 	return 0;

@@ -7,6 +7,7 @@
 #include <taskLib.h>
 #include <sysLib.h>
 #include <tickLib.h>
+#include <hwif/buslib/vxbI2cLib.h>
 
 // https://comp.os.vxworks.narkive.com/Pdbc5O8e/system-time-in-milliseconds
 
