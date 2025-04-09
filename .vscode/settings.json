@@ -124,6 +124,7 @@
         "cfenv": "cpp",
         "cinttypes": "cpp",
         "socklib.h": "c",
-        "inetlib.h": "c"
+        "inetlib.h": "c",
+        "ffslib.h": "c"
     }
 }
