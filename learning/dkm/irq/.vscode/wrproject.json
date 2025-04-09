@@ -1,0 +1,6 @@
+{
+    "sdkPath": "/home/leo/workspace/vxworks-work/vxworks-sdk-rpi4",
+    "envFile": "/home/leo/workspace/vxworks-work/vxworks-sdk-rpi4/sdkenv.sh",
+    "projectType": "MakeFile LKM",
+    "platformType": "VxWorks"
+}
