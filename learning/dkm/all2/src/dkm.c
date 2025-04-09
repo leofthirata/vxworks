@@ -1,32 +1,27 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <sysLib.h>
 #include <taskLib.h>
+#include <msgQLib.h>
 
 #include <wdLib.h>
 
 #include <subsys/gpio/vxbGpioLib.h>
 #include <subsys/gpio/vxbGpioCommon.h>
 
-#include <sockLib.h>
-#include <inetLib.h>
-
 #define DELAY_MS(ms)	(sysClkRateGet() / (1000 / ms))
 
 #define LED_PIN			21
+#define LED_PIN2			16
 #define BUTTON_PIN		20
 #define GPIO_MODE_OUTPUT 		1
 #define GPIO_MODE_INPUT 		0
 
-// socket applications dont work in DKM mode?
-
-#define UDP_PORT		8080
-
 bool control = false;
-bool stop = false;
 WDOG_ID timer;
-TASK_ID timer_id;
+MSG_Q_ID q_id;
 int count = 0;
 
 int led_config(int gpio);
@@ -66,12 +61,8 @@ void timer_task()
 		perror("led_config fail\n");
 	}
 
-	// int count = 0;
 	while (count < 6) {
-	// while (!stop) {
 		if (control) {
-			// count++;
-			// printf("Timer triggered!\n");
 			control = false;
 			gpio_toggle(gpio);
 			wdStart(timer, DELAY_MS(1000), (FUNCPTR)timer_handler, 0);
@@ -79,7 +70,27 @@ void timer_task()
 		taskDelay(DELAY_MS(1));
 	}
 
-	stop = true;
+	taskDelete(NULL);
+}
+
+void led_task()
+{
+	printf("Led task started!\n");
+
+	int gpio = LED_PIN2;
+	int ret = led_config(gpio);
+	if (ret < 0) {
+		perror("led_config fail\n");
+	}
+
+	while (count < 6) {
+		char buf[100];
+		long int rx_bytes = msgQReceive(q_id, buf, sizeof(buf), WAIT_FOREVER);
+		if (rx_bytes > 0) {
+			gpio_toggle(gpio);
+			printf("Led 2 triggered\n");
+		}
+	}
 
 	taskDelete(NULL);
 }
@@ -130,11 +141,6 @@ int gpio_toggle(int gpio)
 	return ret;
 }
 
-void button_handler()
-{
-	stop = true;
-}
-
 void button_task()
 {
 	printf("Button task started!\n");
@@ -150,83 +156,38 @@ void button_task()
 	while (count < 6) {
 		curr = gpio_get_level(gpio);
 		if (prev != curr && curr == 0) { // neg edge
-			// button_handler();
 			printf("Button pressed!\n");
-			if (!taskIsSuspended(timer_id))
-				taskSuspend(timer_id);
-			else
-				taskResume(timer_id);
-
+			const char *msg = "TEST MSG";
+			ret = msgQSend(q_id, (char *)msg, strlen(msg), WAIT_FOREVER, 0);
+			if (ret < 0) {
+				perror("Failed to send Q msg\n");
+			}
 			count++;
-			stop = true;
 		}
 		prev = curr;
-		// taskDelay(DELAY_MS(1));
 	}
 
 	taskDelete(NULL);
 }
 
-void udp_server_task()
-{
-	printf("UDP server task started\n");
+// void producer_task()
+// {
 
-	int sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock < 0) {
-		perror("Failed to create socket\n");
-		stop = true;
-	}
+// }
 
-	struct sockaddr_in server;
-	memset(&server, 0, sizeof(struct sockaddr_in));
-	server.sin_family = AF_INET;
-	server.sin_port = htons(UDP_PORT);
-	server.sin_addr.s_addr = htonl(INADDR_ANY);
+// void consumer_task()
+// {
 
-	int optval;
-	int ret = setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char*)&optval, sizeof(int));
-    if (ret != 0)
-    {
-        close(sock);
-        perror("setsockopt failed: ");
-		stop = true;
-    }
-
-	ret = bind(sock, (struct sockaddr *)&server, sizeof(server));
-	if (ret < 0) {
-        close(sock);
-		perror("Failed to bind server\n");
-		stop = true;
-	}
-
-	while (!stop) {
-		struct sockaddr client;
-		memset(&client, 0, sizeof(struct sockaddr));
-		socklen_t len = sizeof(client);
-		char buf[100];
-		long int rx_bytes = recvfrom(sock, buf, sizeof(buf), 0, &client, &len);
-		printf("Received %d bytes\n", rx_bytes);
-
-		if (rx_bytes > 0) {
-			char msg[rx_bytes];
-			snprintf(msg, rx_bytes, "%s", buf);
-			printf("Received msg: %s\n", msg);
-		}
-	}
-
-	close(sock);
-
-	taskDelete(NULL);
-}
+// }
 
 int main()
 {
-	timer_id = taskSpawn("timer_task", 10, 0, 200, (FUNCPTR)timer_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	q_id = msgQCreate(10, 50, 0);
+	TASK_ID timer_id = taskSpawn("timer_task", 10, 0, 200, (FUNCPTR)timer_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+	TASK_ID led_id = taskSpawn("led_task", 9, 0, 200, (FUNCPTR)led_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 	TASK_ID button_id = taskSpawn("button_task", 11, 0, 200, (FUNCPTR)button_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-	// TASK_ID server_id = taskSpawn("udp_server_task", 12, 0, 500, (FUNCPTR)udp_server_task, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	// while (taskIdVerify(timer_id) == OK || taskIdVerify(button_id) == OK || taskIdVerify(server_id) == OK) {
-	while (taskIdVerify(timer_id) == OK || taskIdVerify(button_id) == OK) {
+	while (taskIdVerify(timer_id) == OK || taskIdVerify(button_id) == OK || taskIdVerify(led_id) == OK) {
 			// taskDelay(DELAY_MS(500));
 	}
 

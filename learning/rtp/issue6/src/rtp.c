@@ -14,7 +14,7 @@
 // logging task deletes tasks after receiving stop msg but cant close socket without its descriptor
 MSG_Q_ID queue;
 #define SERVER_IP       "192.168.0.18"
-#define SERVER_PORT     8000
+#define SERVER_PORT     8007
 
 #define UDP_SERVER      1
 // #define TCP_SERVER      1
